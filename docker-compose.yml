@@ -1,0 +1,72 @@
+unlimitedapi:
+  restart: always
+  build: unlimitedapi
+  expose:
+    - "8000"
+  volumes:
+    - /usr/src/app/static
+  env_file: .env
+  environment:
+    - PGDB_HOST=postgres
+    - PGDB_PORT=5432
+    - PGDB_NAME=unlimited
+    - PGDB_USER=unlimited
+    - PGDB_PASSWORD=unlmtd
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+    - REDIS_DBINDEX=1
+    - ORIENTDB_DB=yourdb
+    - ORIENTDB_DB_USER=yourusername
+    - ORIENTDB_DB_USER_PASSWORD=yourpassword
+    - VIRTUAL_HOST=~^orientdb\..*
+  command: /usr/local/bin/gunicorn -w 2 -b :8000 app:app
+  links:
+    - postgres
+    - redis
+    - orientdb
+
+postgres:
+  build: postgres/
+  log_driver: "syslog"
+  log_opt:
+    syslog-tag: "postgresql"
+  environment:
+    POSTGRES_USER: yourusername
+    POSTGRES_PASSWORD: yourpassword
+  ports:
+    - "5432:5432"
+
+nginx:
+  restart: always
+  build: nginx/
+  ports:
+    - "80:80"
+  volumes:
+    - /www/static
+  volumes_from:
+    - unlimitedapi
+  links:
+    - unlimitedapi:unlimitedapi
+    - postgres
+    - redis
+    - orientdb
+
+redis:
+  build: redis
+  ports:
+    - "6379:6379"
+
+orientdb:
+    image: bulktrade/orientdb
+    ports:
+        - 2424 # binary
+        - 2480 # http
+    environment:
+        - ORIENTDB_DB=yourdb
+        - ORIENTDB_DB_USER=yourusername
+        - ORIENTDB_DB_USER_PASSWORD=yourpassword
+        - ORIENTDB_ROOT_USER=root
+        - ORIENTDB_ROOT_USER_PASSWORD=yourpassword
+        - VIRTUAL_HOST=~^orientdb\..*
+        - CERT_NAME=default
+        - VIRTUAL_PORT=2480
